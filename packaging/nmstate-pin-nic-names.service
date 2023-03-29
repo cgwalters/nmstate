@@ -1,0 +1,16 @@
+[Unit]
+Description=Pin active network interfaces
+Documentation=man:nmstate.service(8) https://www.nmstate.io
+After=NetworkManager.service
+Requires=NetworkManager.service
+# This file is written by the pin process
+ConditionPathExists=!/etc/systemd/network/.nmstate-pinned.stamp
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/nmstatectl pin-nic-names
+RemainAfterExit=yes
+
+# Note: No default [Install] section here, this unit should be invoked manually
+# or configured explicitly by external infrastructure.  A good time to invoke it
+# is after e.g. something like kubelet.service is up and running.
