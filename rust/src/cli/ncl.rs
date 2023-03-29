@@ -266,6 +266,14 @@ fn main() {
         .subcommand(
             clap::Command::new(SUB_CMD_PIN_NIC_NAMES)
                 .about("Generate .link files which \"pin\" network interfaces to current names")
+                .arg(
+                    clap::Arg::new("DRY_RUN")
+                        .long("dry-run")
+                        .takes_value(false)
+                        .help(
+                            "Only output changes that would be made",
+                        ),
+                )
         )
         .subcommand(
             clap::Command::new(SUB_CMD_POLICY)
@@ -380,10 +388,12 @@ fn main() {
         print_result_and_exit(state_edit(matches));
     } else if let Some(matches) = matches.subcommand_matches(SUB_CMD_SERVICE) {
         print_result_and_exit(ncl_service(matches));
-    } else if let Some(_matches) =
+    } else if let Some(matches) =
         matches.subcommand_matches(SUB_CMD_PIN_NIC_NAMES)
     {
-        print_result_and_exit(ncl_pin_nic_names());
+        print_result_and_exit(ncl_pin_nic_names(
+            matches.try_contains_id("DRY_RUN").unwrap_or_default(),
+        ));
     } else if let Some(matches) = matches.subcommand_matches(SUB_CMD_POLICY) {
         print_result_and_exit(policy(matches));
     } else if let Some(matches) = matches.subcommand_matches(SUB_CMD_FORMAT) {

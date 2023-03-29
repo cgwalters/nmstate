@@ -125,7 +125,7 @@ fn relocate_file(file_path: &Path) -> Result<(), CliError> {
 
 /// For all active interfaces, write a systemd .link file which pins to the currently
 /// active name.
-pub(crate) fn ncl_pin_nic_names() -> Result<String, CliError> {
+pub(crate) fn ncl_pin_nic_names(dry_run: bool) -> Result<String, CliError> {
     let stamp_path =
         Path::new(SYSTEMD_NETWORK_LINK_FOLDER).join(NMSTATE_PINNED_STAMP);
     if stamp_path.exists() {
@@ -148,19 +148,24 @@ pub(crate) fn ncl_pin_nic_names() -> Result<String, CliError> {
             Some(c) => c,
             None => continue,
         };
+        let action = if dry_run { "Would pin" } else { "Pinning" };
         log::info!(
-            "Pining the interface with MAC {mac} to \
+            "{action} the interface with MAC {mac} to \
                         interface name {}",
             iface.name()
         );
-        changed |= pin_iface_name_via_systemd_link(mac, iface.name())?;
+        if !dry_run {
+            changed |= pin_iface_name_via_systemd_link(mac, iface.name())?;
+        }
     }
 
     if !changed {
         log::info!("No changes.");
     }
 
-    std::fs::write(stamp_path, b"")?;
+    if !dry_run {
+        std::fs::write(stamp_path, b"")?;
+    }
 
     Ok("".to_string())
 }
