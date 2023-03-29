@@ -274,6 +274,15 @@ fn main() {
                             "Only output changes that would be made",
                         ),
                 )
+                .arg(
+                    clap::Arg::new("ROOT")
+                        .long("root")
+                        .short('r')
+                        .required(false)
+                        .takes_value(true)
+                        .default_value("/")
+                        .help("Target root filesystem for writing state"),
+                ),
         )
         .subcommand(
             clap::Command::new(SUB_CMD_POLICY)
@@ -392,6 +401,7 @@ fn main() {
         matches.subcommand_matches(SUB_CMD_PIN_NIC_NAMES)
     {
         print_result_and_exit(ncl_pin_nic_names(
+            matches.value_of("ROOT").unwrap(),
             matches.try_contains_id("DRY_RUN").unwrap_or_default(),
         ));
     } else if let Some(matches) = matches.subcommand_matches(SUB_CMD_POLICY) {

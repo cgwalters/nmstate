@@ -20,7 +20,7 @@ const RELOCATE_FILE_EXTENTION: &str = "applied";
 const PIN_IFACE_NAME_FOLDER: &str = "pin_iface_name";
 const PIN_STATE_FILENAME: &str = "pin.yml";
 /// See https://www.freedesktop.org/software/systemd/man/systemd.link.html
-const SYSTEMD_NETWORK_LINK_FOLDER: &str = "/etc/systemd/network";
+const SYSTEMD_NETWORK_LINK_FOLDER: &str = "etc/systemd/network";
 /// File which if present signals that we have already performed NIC pinning.
 const NMSTATE_PINNED_STAMP: &str = ".nmstate-pinned.stamp";
 
@@ -125,9 +125,13 @@ fn relocate_file(file_path: &Path) -> Result<(), CliError> {
 
 /// For all active interfaces, write a systemd .link file which pins to the currently
 /// active name.
-pub(crate) fn ncl_pin_nic_names(dry_run: bool) -> Result<String, CliError> {
-    let stamp_path =
-        Path::new(SYSTEMD_NETWORK_LINK_FOLDER).join(NMSTATE_PINNED_STAMP);
+pub(crate) fn ncl_pin_nic_names(
+    root: &str,
+    dry_run: bool,
+) -> Result<String, CliError> {
+    let stamp_path = Path::new(root)
+        .join(SYSTEMD_NETWORK_LINK_FOLDER)
+        .join(NMSTATE_PINNED_STAMP);
     if stamp_path.exists() {
         log::info!("{} exists; nothing to do", stamp_path.display());
         return Ok("".to_string());
@@ -155,7 +159,8 @@ pub(crate) fn ncl_pin_nic_names(dry_run: bool) -> Result<String, CliError> {
             iface.name()
         );
         if !dry_run {
-            changed |= pin_iface_name_via_systemd_link(mac, iface.name())?;
+            changed |=
+                pin_iface_name_via_systemd_link(root, mac, iface.name())?;
         }
     }
 
@@ -174,6 +179,7 @@ pub(crate) fn ncl_pin_nic_names(dry_run: bool) -> Result<String, CliError> {
 /// have changed name since then (using MAC address as a reference point).
 /// If so, generate a systemd .link file to pin to the previous name.
 fn pin_iface_name(cfg_dir: &Path) -> Result<(), CliError> {
+    let root = "/";
     let file_path = cfg_dir.join(PIN_STATE_FILENAME);
     let pin_state: NetworkState = {
         let r = std::fs::File::open(&file_path).map(BufReader::new)?;
@@ -216,7 +222,11 @@ fn pin_iface_name(cfg_dir: &Path) -> Result<(), CliError> {
                         interface name {}",
                     pin_iface.name()
                 );
-                pin_iface_name_via_systemd_link(cur_mac, pin_iface.name())?;
+                pin_iface_name_via_systemd_link(
+                    root,
+                    cur_mac,
+                    pin_iface.name(),
+                )?;
             }
         }
     }
@@ -226,10 +236,11 @@ fn pin_iface_name(cfg_dir: &Path) -> Result<(), CliError> {
 }
 
 fn pin_iface_name_via_systemd_link(
+    root: &str,
     mac: &str,
     iface_name: &str,
 ) -> Result<bool, CliError> {
-    let link_dir = Path::new(SYSTEMD_NETWORK_LINK_FOLDER);
+    let link_dir = Path::new(root).join(SYSTEMD_NETWORK_LINK_FOLDER);
 
     let file_path =
         link_dir.join(format!("{PIN_FILE_PREFIX}-{iface_name}.link"));
