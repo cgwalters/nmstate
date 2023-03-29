@@ -125,6 +125,7 @@ pub(crate) fn ncl_pin_nic_names() -> Result<String, CliError> {
     state.set_running_config_only(true);
     state.retrieve()?;
 
+    let mut changed = false;
     for iface in state
         .interfaces
         .iter()
@@ -139,7 +140,11 @@ pub(crate) fn ncl_pin_nic_names() -> Result<String, CliError> {
                         interface name {}",
             iface.name()
         );
-        pin_iface_name_via_systemd_link(mac, iface.name())?;
+        changed |= pin_iface_name_via_systemd_link(mac, iface.name())?;
+    }
+
+    if !changed {
+        log::info!("No changes.");
     }
 
     Ok("".to_string())
@@ -203,18 +208,22 @@ fn pin_iface_name(cfg_dir: &Path) -> Result<(), CliError> {
 fn pin_iface_name_via_systemd_link(
     mac: &str,
     iface_name: &str,
-) -> Result<(), CliError> {
+) -> Result<bool, CliError> {
     let link_dir = Path::new(SYSTEMD_NETWORK_LINK_FOLDER);
+    // 98 here is important as it should be invoked after others but before
+    // 99-default.link
+    let file_path = link_dir.join(format!("98-{iface_name}.link"));
+    if file_path.exists() {
+        log::info!("Network link file {} already exists", file_path.display());
+        return Ok(false);
+    }
+
     if !link_dir.exists() {
         std::fs::create_dir(&link_dir)?;
     }
 
     let content =
         format!("{PIN_GENERATED_BY}\n[Match]\nMACAddress={mac}\n\n[Link]\nName={iface_name}\n");
-
-    // 98 here is important as it should be invoked after others but before
-    // 99-default.link
-    let file_path = link_dir.join(format!("98-{iface_name}.link"));
 
     std::fs::write(&file_path, content.as_bytes()).map_err(|e| {
         CliError::from(format!(
@@ -226,5 +235,5 @@ fn pin_iface_name_via_systemd_link(
         "Systemd network link file created at {}",
         file_path.display()
     );
-    Ok(())
+    Ok(true)
 }
