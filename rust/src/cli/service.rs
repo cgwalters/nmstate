@@ -21,6 +21,8 @@ const PIN_IFACE_NAME_FOLDER: &str = "pin_iface_name";
 const PIN_STATE_FILENAME: &str = "pin.yml";
 /// See https://www.freedesktop.org/software/systemd/man/systemd.link.html
 const SYSTEMD_NETWORK_LINK_FOLDER: &str = "/etc/systemd/network";
+/// File which if present signals that we have already performed NIC pinning.
+const NMSTATE_PINNED_STAMP: &str = ".nmstate-pinned.stamp";
 
 pub(crate) fn ncl_service(
     matches: &clap::ArgMatches,
@@ -124,6 +126,13 @@ fn relocate_file(file_path: &Path) -> Result<(), CliError> {
 /// For all active interfaces, write a systemd .link file which pins to the currently
 /// active name.
 pub(crate) fn ncl_pin_nic_names() -> Result<String, CliError> {
+    let stamp_path =
+        Path::new(SYSTEMD_NETWORK_LINK_FOLDER).join(NMSTATE_PINNED_STAMP);
+    if stamp_path.exists() {
+        log::info!("{} exists; nothing to do", stamp_path.display());
+        return Ok("".to_string());
+    }
+
     let mut state = NetworkState::new();
     state.set_kernel_only(true);
     state.set_running_config_only(true);
@@ -150,6 +159,8 @@ pub(crate) fn ncl_pin_nic_names() -> Result<String, CliError> {
     if !changed {
         log::info!("No changes.");
     }
+
+    std::fs::write(stamp_path, b"")?;
 
     Ok("".to_string())
 }
