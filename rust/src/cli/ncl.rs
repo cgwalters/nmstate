@@ -18,6 +18,7 @@ mod service;
 
 use env_logger::Builder;
 use log::LevelFilter;
+use service::ncl_pin_nic_names;
 
 #[cfg(feature = "query_apply")]
 use crate::apply::{
@@ -49,6 +50,7 @@ const SUB_CMD_EDIT: &str = "edit";
 const SUB_CMD_VERSION: &str = "version";
 const SUB_CMD_AUTOCONF: &str = "autoconf";
 const SUB_CMD_SERVICE: &str = "service";
+const SUB_CMD_PIN_NIC_NAMES: &str = "pin-nic-names";
 const SUB_CMD_POLICY: &str = "policy";
 const SUB_CMD_FORMAT: &str = "format";
 
@@ -262,6 +264,10 @@ fn main() {
                 ),
         )
         .subcommand(
+            clap::Command::new(SUB_CMD_PIN_NIC_NAMES)
+                .about("Generate .link files which \"pin\" network interfaces to current names")
+        )
+        .subcommand(
             clap::Command::new(SUB_CMD_POLICY)
                 .alias("p")
                 .about("Generate network state from policy")
@@ -374,6 +380,10 @@ fn main() {
         print_result_and_exit(state_edit(matches));
     } else if let Some(matches) = matches.subcommand_matches(SUB_CMD_SERVICE) {
         print_result_and_exit(ncl_service(matches));
+    } else if let Some(_matches) =
+        matches.subcommand_matches(SUB_CMD_PIN_NIC_NAMES)
+    {
+        print_result_and_exit(ncl_pin_nic_names());
     } else if let Some(matches) = matches.subcommand_matches(SUB_CMD_POLICY) {
         print_result_and_exit(policy(matches));
     } else if let Some(matches) = matches.subcommand_matches(SUB_CMD_FORMAT) {

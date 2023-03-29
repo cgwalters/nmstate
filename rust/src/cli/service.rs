@@ -117,6 +117,34 @@ fn relocate_file(file_path: &Path) -> Result<(), CliError> {
     Ok(())
 }
 
+/// For all active interfaces, write a systemd .link file which pins to the currently
+/// active name.
+pub(crate) fn ncl_pin_nic_names() -> Result<String, CliError> {
+    let mut state = NetworkState::new();
+    state.set_kernel_only(true);
+    state.set_running_config_only(true);
+    state.retrieve()?;
+
+    for iface in state
+        .interfaces
+        .iter()
+        .filter(|i| i.iface_type() == InterfaceType::Ethernet)
+    {
+        let mac = match iface.base_iface().mac_address.as_ref() {
+            Some(c) => c,
+            None => continue,
+        };
+        log::info!(
+            "Pining the interface with MAC {mac} to \
+                        interface name {}",
+            iface.name()
+        );
+        pin_iface_name_via_systemd_link(mac, iface.name())?;
+    }
+
+    Ok("".to_string())
+}
+
 /// Iterate over previously saved network state, and determine if any NICs
 /// have changed name since then (using MAC address as a reference point).
 /// If so, generate a systemd .link file to pin to the previous name.
