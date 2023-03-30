@@ -403,6 +403,7 @@ fn main() {
     } else if let Some(matches) =
         matches.subcommand_matches(SUB_CMD_PERSIST_NIC_NAMES)
     {
+        #[cfg(feature = "persist_nic")]
         print_result_and_exit(crate::persist_nic::run_persist_immediately(
             matches.value_of("ROOT").unwrap(),
             matches.try_contains_id("DRY_RUN").unwrap_or_default(),

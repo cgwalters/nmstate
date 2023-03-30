@@ -26,7 +26,7 @@ pub(crate) fn run_persist_from_prior_state(
     let pin_iface_path = Path::new(&pin_iface_name_dir);
     if pin_iface_path.exists() {
         // We have a previously saved state for NIC name pinning; execute that now.
-        persist_iface_name(&pin_iface_path)?;
+        persist_iface_name(pin_iface_path)?;
     }
     Ok(())
 }
