@@ -45,10 +45,13 @@ pub(crate) fn run_persist_immediately(
         return Ok("".to_string());
     }
 
-    let mut state = NetworkState::new();
-    state.set_kernel_only(true);
-    state.set_running_config_only(true);
-    state.retrieve()?;
+    let state = {
+        let mut state = NetworkState::new();
+        state.set_kernel_only(true);
+        state.set_running_config_only(true);
+        state.retrieve()?;
+        state
+    };
 
     let mut changed = false;
     for iface in state
@@ -93,10 +96,13 @@ fn persist_iface_name(cfg_dir: &Path) -> Result<(), CliError> {
         let r = std::fs::File::open(&file_path).map(BufReader::new)?;
         serde_yaml::from_reader(r)?
     };
-    let mut cur_state = NetworkState::new();
-    cur_state.set_kernel_only(true);
-    cur_state.set_running_config_only(true);
-    cur_state.retrieve()?;
+    let cur_state = {
+        let mut state = NetworkState::new();
+        state.set_kernel_only(true);
+        state.set_running_config_only(true);
+        state.retrieve()?;
+        state
+    };
 
     for cur_iface in cur_state
         .interfaces
