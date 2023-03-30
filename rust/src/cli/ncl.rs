@@ -63,7 +63,7 @@ fn main() {
         print_result_and_exit(autoconf(&argv[1..]));
     }
 
-    let matches = clap::Command::new(APP_NAME)
+    let mut app = clap::Command::new(APP_NAME)
         .version(clap::crate_version!())
         .author("Gris Ge <fge@redhat.com>")
         .about("Command line of nmstate")
@@ -264,27 +264,6 @@ fn main() {
                 ),
         )
         .subcommand(
-            clap::Command::new(SUB_CMD_PIN_NIC_NAMES)
-                .about("Generate .link files which \"pin\" network interfaces to current names")
-                .arg(
-                    clap::Arg::new("DRY_RUN")
-                        .long("dry-run")
-                        .takes_value(false)
-                        .help(
-                            "Only output changes that would be made",
-                        ),
-                )
-                .arg(
-                    clap::Arg::new("ROOT")
-                        .long("root")
-                        .short('r')
-                        .required(false)
-                        .takes_value(true)
-                        .default_value("/")
-                        .help("Target root filesystem for writing state"),
-                ),
-        )
-        .subcommand(
             clap::Command::new(SUB_CMD_POLICY)
                 .alias("p")
                 .about("Generate network state from policy")
@@ -340,7 +319,30 @@ fn main() {
         .subcommand(
             clap::Command::new(SUB_CMD_VERSION)
             .about("Show version")
-       ).get_matches();
+       );
+    if cfg!(feature = "persist_nic") {
+        app = app.subcommand(
+        clap::Command::new(SUB_CMD_PIN_NIC_NAMES)
+            .about("Generate .link files which \"pin\" network interfaces to current names")
+            .arg(
+                clap::Arg::new("DRY_RUN")
+                    .long("dry-run")
+                    .takes_value(false)
+                    .help(
+                        "Only output changes that would be made",
+                    ),
+            )
+            .arg(
+                clap::Arg::new("ROOT")
+                    .long("root")
+                    .short('r')
+                    .required(false)
+                    .takes_value(true)
+                    .default_value("/")
+                    .help("Target root filesystem for writing state"),
+            ));
+    };
+    let matches = app.get_matches();
     let (log_module_filters, log_level) =
         match matches.occurrences_of("verbose") {
             0 => (vec!["nmstate", "nm_dbus"], LevelFilter::Info),

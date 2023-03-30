@@ -29,6 +29,7 @@ uuid = { version = "1.1", features = ["v4"] }
 chrono = "0.4"
 
 [features]
-default = ["query_apply", "gen_conf"]
+default = ["query_apply", "gen_conf", "persist_nic"]
 query_apply = ["nmstate/query_apply", "ctrlc"]
 gen_conf = ["nmstate/gen_conf"]
+persist_nic = []
