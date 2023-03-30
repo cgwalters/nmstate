@@ -59,15 +59,32 @@ pub(crate) fn run_persist_immediately(
         .iter()
         .filter(|i| i.iface_type() == InterfaceType::Ethernet)
     {
+        let iface_name = iface.name();
         let mac = match iface.base_iface().mac_address.as_ref() {
             Some(c) => c,
             None => continue,
         };
+        let base_iface = iface.base_iface();
+        let ipv4_manual = base_iface
+            .ipv4
+            .as_ref()
+            .map(|ip| ip.is_static())
+            .unwrap_or_default();
+        let ipv6_manual = base_iface
+            .ipv6
+            .as_ref()
+            .map(|ip| ip.is_static())
+            .unwrap_or_default();
+        let ip_manual = ipv4_manual || ipv6_manual;
+        if !ip_manual {
+            log::info!("Skipping interface {iface_name} as no static IP addressing was found");
+            continue;
+        }
+
         let action = if dry_run { "Would pin" } else { "Pinning" };
         log::info!(
             "{action} the interface with MAC {mac} to \
-                        interface name {}",
-            iface.name()
+                        interface name {iface_name}"
         );
         if !dry_run {
             changed |=
