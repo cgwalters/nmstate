@@ -8,6 +8,8 @@ mod error;
 mod format;
 #[cfg(feature = "gen_conf")]
 mod gen_conf;
+#[cfg(feature = "persist_nic")]
+pub(crate) mod persist_nic;
 #[cfg(feature = "query_apply")]
 mod policy;
 #[cfg(feature = "query_apply")]
@@ -18,7 +20,6 @@ mod service;
 
 use env_logger::Builder;
 use log::LevelFilter;
-use service::ncl_pin_nic_names;
 
 #[cfg(feature = "query_apply")]
 use crate::apply::{
@@ -50,7 +51,7 @@ const SUB_CMD_EDIT: &str = "edit";
 const SUB_CMD_VERSION: &str = "version";
 const SUB_CMD_AUTOCONF: &str = "autoconf";
 const SUB_CMD_SERVICE: &str = "service";
-const SUB_CMD_PIN_NIC_NAMES: &str = "pin-nic-names";
+const SUB_CMD_PERSIST_NIC_NAMES: &str = "persist-nic-names";
 const SUB_CMD_POLICY: &str = "policy";
 const SUB_CMD_FORMAT: &str = "format";
 
@@ -322,8 +323,8 @@ fn main() {
        );
     if cfg!(feature = "persist_nic") {
         app = app.subcommand(
-        clap::Command::new(SUB_CMD_PIN_NIC_NAMES)
-            .about("Generate .link files which \"pin\" network interfaces to current names")
+        clap::Command::new(SUB_CMD_PERSIST_NIC_NAMES)
+            .about("Generate .link files which persist active network interfaces to their current names")
             .arg(
                 clap::Arg::new("DRY_RUN")
                     .long("dry-run")
@@ -400,9 +401,9 @@ fn main() {
     } else if let Some(matches) = matches.subcommand_matches(SUB_CMD_SERVICE) {
         print_result_and_exit(ncl_service(matches));
     } else if let Some(matches) =
-        matches.subcommand_matches(SUB_CMD_PIN_NIC_NAMES)
+        matches.subcommand_matches(SUB_CMD_PERSIST_NIC_NAMES)
     {
-        print_result_and_exit(ncl_pin_nic_names(
+        print_result_and_exit(crate::persist_nic::run_persist_immediately(
             matches.value_of("ROOT").unwrap(),
             matches.try_contains_id("DRY_RUN").unwrap_or_default(),
         ));
