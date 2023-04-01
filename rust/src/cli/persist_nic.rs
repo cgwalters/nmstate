@@ -31,29 +31,28 @@ pub(crate) fn run_persist_from_prior_state(
     Ok(())
 }
 
-/// For all active interfaces, write a systemd .link file which pins to the currently
-/// active name.
-pub(crate) fn run_persist_immediately(
-    root: &str,
-    dry_run: bool,
-) -> Result<String, CliError> {
-    let stamp_path = Path::new(root)
-        .join(SYSTEMD_NETWORK_LINK_FOLDER)
-        .join(NMSTATE_PERSIST_STAMP);
-    if stamp_path.exists() {
-        log::info!("{} exists; nothing to do", stamp_path.display());
-        return Ok("".to_string());
-    }
+/// The action to take
+pub(crate) enum PersistAction {
+    /// Persist NIC name state
+    Save,
+    /// Print what we would do in Save mode
+    DryRun,
+    /// Output any persisted state
+    Inspect,
+}
 
-    let state = {
-        let mut state = NetworkState::new();
-        state.set_kernel_only(true);
-        state.set_running_config_only(true);
-        state.retrieve()?;
-        state
-    };
+fn gather_state() -> Result<NetworkState, CliError> {
+    let mut state = NetworkState::new();
+    state.set_kernel_only(true);
+    state.set_running_config_only(true);
+    state.retrieve()?;
+    Ok(state)
+}
 
-    let mut changed = false;
+fn process_interfaces<F>(state: &NetworkState, mut f: F) -> Result<(), CliError>
+where
+    F: FnMut(&nmstate::Interface, &str) -> Result<(), CliError>,
+{
     for iface in state
         .interfaces
         .iter()
@@ -81,6 +80,35 @@ pub(crate) fn run_persist_immediately(
             continue;
         }
 
+        f(iface, mac.as_str())?;
+    }
+    Ok(())
+}
+
+/// For all active interfaces, write a systemd .link file which pins to the currently
+/// active name.
+pub(crate) fn run_persist_immediately(
+    root: &str,
+    action: PersistAction,
+) -> Result<String, CliError> {
+    let dry_run = match action {
+        PersistAction::Save => false,
+        PersistAction::DryRun => true,
+        PersistAction::Inspect => return inspect(root),
+    };
+
+    let stamp_path = Path::new(root)
+        .join(SYSTEMD_NETWORK_LINK_FOLDER)
+        .join(NMSTATE_PERSIST_STAMP);
+    if stamp_path.exists() {
+        log::info!("{} exists; nothing to do", stamp_path.display());
+        return Ok("".to_string());
+    }
+
+    let state = gather_state()?;
+    let mut changed = false;
+    process_interfaces(&state, |iface, mac| {
+        let iface_name = iface.name();
         let action = if dry_run { "Would pin" } else { "Pinning" };
         log::info!(
             "{action} the interface with MAC {mac} to \
@@ -90,7 +118,8 @@ pub(crate) fn run_persist_immediately(
             changed |=
                 persist_iface_name_via_systemd_link(root, mac, iface.name())?;
         }
-    }
+        Ok(())
+    })?;
 
     if !changed {
         log::info!("No changes.");
@@ -99,6 +128,51 @@ pub(crate) fn run_persist_immediately(
     if !dry_run {
         std::fs::write(stamp_path, b"")?;
     }
+
+    Ok("".to_string())
+}
+
+pub(crate) fn inspect(root: &str) -> Result<String, CliError> {
+    let netdir = Path::new(root).join(SYSTEMD_NETWORK_LINK_FOLDER);
+    let stamp_path = netdir.join(NMSTATE_PERSIST_STAMP);
+    if !stamp_path.exists() {
+        log::info!(
+            "{} does not exist, no prior persisted state",
+            stamp_path.display()
+        );
+        return Ok("".to_string());
+    }
+
+    let mut n = 0;
+    for e in netdir.read_dir()? {
+        let e = e?;
+        let name = e.file_name();
+        let name = if let Some(n) = name.to_str() {
+            n
+        } else {
+            continue;
+        };
+        if !name.ends_with(".link") {
+            continue;
+        }
+        if !name.starts_with(PIN_FILE_PREFIX) {
+            continue;
+        }
+        log::info!("Found persisted NIC file: {name}");
+        n += 1;
+    }
+    if n == 0 {
+        log::info!("No persisted NICs found");
+    }
+
+    let state = gather_state()?;
+    process_interfaces(&state, |iface, mac| {
+        let iface_name = iface.name();
+        log::info!(
+            "NOTE: would pin the interface with MAC {mac} to interface name {iface_name}"
+        );
+        Ok(())
+    })?;
 
     Ok("".to_string())
 }

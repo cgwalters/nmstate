@@ -334,6 +334,14 @@ fn main() {
                     ),
             )
             .arg(
+                clap::Arg::new("INSPECT")
+                    .long("inspect")
+                    .takes_value(false)
+                    .help(
+                        "Print the state of any persisted nics",
+                    ),
+            )
+            .arg(
                 clap::Arg::new("ROOT")
                     .long("root")
                     .short('r')
@@ -404,10 +412,21 @@ fn main() {
         matches.subcommand_matches(SUB_CMD_PERSIST_NIC_NAMES)
     {
         #[cfg(feature = "persist_nic")]
-        print_result_and_exit(crate::persist_nic::run_persist_immediately(
-            matches.value_of("ROOT").unwrap(),
-            matches.try_contains_id("DRY_RUN").unwrap_or_default(),
-        ));
+        {
+            let action =
+                if matches.try_contains_id("DRY_RUN").unwrap_or_default() {
+                    persist_nic::PersistAction::DryRun
+                } else if matches.try_contains_id("INSPECT").unwrap_or_default()
+                {
+                    persist_nic::PersistAction::Inspect
+                } else {
+                    persist_nic::PersistAction::Save
+                };
+            print_result_and_exit(crate::persist_nic::run_persist_immediately(
+                matches.value_of("ROOT").unwrap(),
+                action,
+            ));
+        }
     } else if let Some(matches) = matches.subcommand_matches(SUB_CMD_POLICY) {
         print_result_and_exit(policy(matches));
     } else if let Some(matches) = matches.subcommand_matches(SUB_CMD_FORMAT) {
