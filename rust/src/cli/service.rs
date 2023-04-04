@@ -15,10 +15,6 @@ pub(crate) fn ncl_service(
         .value_of(crate::CONFIG_FOLDER_KEY)
         .unwrap_or(crate::DEFAULT_SERVICE_FOLDER);
 
-    if cfg!(feature = "persist_nic") {
-        super::persist_nic::run_persist_from_prior_state(folder)?;
-    }
-
     let config_files = match get_config_files(folder) {
         Ok(f) => f,
         Err(e) => {
