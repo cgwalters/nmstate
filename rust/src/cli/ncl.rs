@@ -349,7 +349,9 @@ fn main() {
                     .takes_value(true)
                     .default_value("/")
                     .help("Target root filesystem for writing state"),
-            ));
+            )
+            // We don't want to expose this outside of OCP yet
+            .hide(true));
     };
     let matches = app.get_matches();
     let (log_module_filters, log_level) =
